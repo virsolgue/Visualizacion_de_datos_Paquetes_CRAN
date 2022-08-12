@@ -1,0 +1,260 @@
+---
+title: "Informe práctico 1"
+author: "Guerrero, Virginia S. - Martínez, Leonel S."
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(lubridate)
+knitr::opts_chunk$set(echo = TRUE)
+
+paquetes_cran <- readr::read_csv("https://raw.githubusercontent.com/cienciadedatos/datos-de-miercoles/master/datos/2019/2019-07-03/paquetes_CRAN.csv")
+```
+
+La base de datos `paquetes_cran` contiene información sobre los paquetes publicados en CRAN desde 2006 a 2019. Podés encontrar más información sobre el conjunto de datos [aquí](https://github.com/cienciadedatos/datos-de-miercoles/blob/master/datos/2019/2019-07-03/README.md).
+
+### **Parte 1**
+
+**Pregunta:** ¿Cómo se comporta la cantidad de paquetes publicados en CRAN a través de los años?, ¿existe alguna tendencia con respecto del idioma de los paquetes?
+
+**Introducción:**
+El proyecto "Datos de Miércoles" recopila datos de las descargas de los paquetes de R disponibles en CRAN (The Comprehensive R Archive Network) entre 2006 y 2019. Dentro de la información que contiene el conjunto se encuentra la fecha de publicación de cada uno de ellos, los autores, la versión publicada y las dependencias que presentan con otros paquetes (ya sea para ser funcionales como aquellos con los que se sugiere combinarlos).
+
+Descripción de cada variable incluida para cada registro:
+
+| Variable          | Clase    | Descripción                                                                                                                                                                                                           |
+| ----------------- |:-------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| paquete           | caracter | Nombre del paquete                                                                                                                                                                                                    |
+| version           | caracter | Versión actualmente publicada en CRAN                                                                                                                                                                                 |
+| depende_de        | caracter | Versión de R y otros paquetes de los que depende                                                                                                                                                                      |
+| importa           | caracter | Paquetes que importa cuando es instalado                                                                                                                                                                              |
+| sugiere           | caracter | Paquetes que sugiere instalar                                                                                                                                                                                         |
+| autores           | caracter | Autores del paquete                                                                                                                                                                                                   |
+| titulo            | caracter | Título descriptivo del paquete                                                                                                                                                                                        |
+| descripcion       | caracter | Descripción del paquete                                                                                                                                                                                               |
+| fecha_publicacion | fecha    | Fecha en que fue publicada en CRAN la última versión                                                                                                                                                                  |
+| idioma            | caracter | Código ISO de dos letras del idioma del paquete (muchos `NA` porque los paquetes en inglés suelen no declarar idioma) |
+| codificacion      | caracter | Codificación utilizada                                                                                                                                                                                                |
+| dependen_de       | caracter | Paquetes que dependen de este paquete                                                                                                                                                                                 |
+| lo_importan       | caracter | Paquetes que importan este paquete cuando son instalados                                                                                                                                                              |
+| lo_sugieren       | caracter | Paquetes que sugieren instalar este paquete        
+
+En esta primera sección analizaremos el comportamiento de la cantidad de paquetes publicados a lo largo de los años e intentaremos determinar si existe alguna tendencia reconocible con respecto al idioma de cada uno de ellos. Para ello, utilizaremos la fecha de publicación (`fecha_publicacion`) además del idioma (`idioma`). Sobre esta última variable debemos considerar que, si bien hay casos en los que el mismo fue registrado, para la mayoría el idioma es desconocido, lo que será tenido en cuenta al momento de agrupar los registros.
+
+**Enfoque:** 
+Para responder a la incógnita presentada en la introducción, se confeccionó, en primer lugar, un gráfico de barras apiladas que permite comparar la cantidad de paquetes publicados año a año. Como puede observarse, período tras período existe un aumento sostenido en la cantidad de paquetes publicados. 
+
+Si bien este gráfico posibilita la comparación de las cantidades según el idioma, considerando que la incidencia de los registros para los que el dato es desconocido es muy significativa, decidimos complementar el análisis con un segundo gráfico que permite abordar la representación de las mismas variables pero individualmente por idioma. 
+
+Además, en el segundo caso se optó por la utilización de un gráfico de líneas que muestra el acumulado de paquetes disponibles dado que de esta manera se puede observar en detalle el crecimiento por idioma de forma aislada.
+
+**Analisis:**
+
+```{r}
+idioma_EN_GB <- c("en-gb", "en-GB", "en_GB")
+idioma_EN_CA <- c("en-CA", "EN-CA")
+idioma_EN_US <- c("en-us" , "en-US")
+idioma_otros <- c("de", "en", "en-AU", "en, es", "es", "et" , "fr" , "pt", "pt-BR, en-GB", "pt_BR", "ru")
+```
+
+```{r}
+paquetes_cran %>%
+    mutate(idioma_normalizado = case_when(
+                        idioma %in% idioma_EN_GB ~ "Inglés (Gran Bretaña)",
+                        idioma %in% idioma_EN_CA ~ "Inglés (Canadá)",
+                        idioma %in% idioma_EN_US ~ "Inglés (Estados Unidos)",
+                        idioma %in% idioma_otros ~ "Otros",
+                        is.na(idioma) ~ 'Desconocido'
+    )) %>%
+    mutate(anio = substr(fecha_publicacion, 1, 4)) %>%
+    group_by(anio, idioma_normalizado) %>%
+    ggplot(aes(x = anio)) +
+    geom_bar(aes(fill = idioma_normalizado), position = 'stack') +
+    # Modifica títulos, subtítulos, etc.
+    labs(
+        title = "Cantidad de paquetes de R publicados por año e idioma",
+        caption = 'Fuente: CRAN (The Comprehensive R Archive Network), proyecto "Datos de Miércoles"',
+        fill = "Idioma",
+        x = "Año",
+        y = "Cantidad de paquetes") +
+    theme(
+        legend.position = "bottom",
+        plot.title = element_text(face = "bold", size = 15),
+        plot.caption = element_text(hjust = 0.5)) +
+    guides(fill = guide_legend(nrow = 2, byrow = TRUE))
+```
+
+```{r}
+paquetes_cran %>%
+    mutate (idioma_normalizado = case_when (
+                        idioma %in% idioma_EN_GB ~ "Inglés (Gran Bretaña)",
+                        idioma %in% idioma_EN_CA ~ "Inglés (Canadá)",
+                        idioma %in% idioma_EN_US ~ "Inglés (Estados Unidos)",
+                        idioma %in% idioma_otros ~ "Otros",
+                        is.na(idioma) ~ "Desconocido"
+    )) %>%
+    # Agrupa por idioma
+    group_by(idioma_normalizado) %>%
+    # Ordena cada grupo por fecha de publicación
+    arrange(fecha_publicacion) %>%
+    # Calcula el acumulado para cada grupo
+    mutate(nro = 1, acumulado = cumsum(nro)) %>%
+    ggplot(aes(x = fecha_publicacion, y = acumulado)) +
+    geom_line(aes(color = idioma_normalizado), alpha = 0.5) +
+    geom_point(aes(color = idioma_normalizado), size = 0.7) +
+    facet_wrap(
+        ~idioma_normalizado,
+        scales = "free") +
+    scale_x_date(date_labels = "%b\n%Y") +
+    labs(
+        title = "Evolución de la cantidad de paquetes disponibles en R según idioma",
+        caption = 'Fuente: CRAN (The Comprehensive R Archive Network), proyecto "Datos de Miércoles"',
+        color = "Idioma",
+        x = "Fecha de publicación",
+        y = "Cantidad acumulada de paquetes") +
+    theme(
+        legend.position = "bottom",
+        plot.title = element_text(face = "bold", size = 12),
+        plot.caption = element_text(hjust = 0.5))
+```
+
+**Discusión:**
+Es claro notar que existe un crecimiento exponencial en la cantidad de paquetes disponibles en R, y que el mismo es independiente del idioma (sea conocido o no). Esto puede relacionarse con el hecho de que en los últimos años ha habido un aumento en el uso de R que la posiciona como herramienta de idioma universal en la exploración de datos y la obtención de la información.
+
+La tendencia creciente en la cantidad de publicaciones de nuevos paquetes sugiere que su base de usuarios está en auge y aumentando cada vez más.
+
+### **Parte 2**
+
+**Pregunta:** ¿Cómo es la relación de los paquetes publicados en CRAN a través de los años? ¿Puede inferirse alguna tendencia en la interdependencia de los paquetes?
+
+
+**Introducción:**
+En esta segunda sección intentaremos determinar si existe alguna tendencia reconocible con respecto a la interdependencia registrada entre los paquetes publicados a lo largo de los años. Para ello, utilizaremos la fecha de publicación (`fecha_publicacion`) además de una nueva columna calculada que separa y cuenta individualmente los paquetes mencionados en la variable `dependen_de`. Sobre esta última variable creada debemos considerar que se aplicaron filtros convenientes a cada gráfico con la finalidad de facilitar la interpretación de las dependencias y/o relaciones.
+
+
+**Enfoque:**
+Para responder a la segunda pregunta planteada se optó por un primer gráfico en el que se representa la cantidad de paquetes publicados anualmente, agrupados por rangos de dependencia y filtrando aquellos registros que presentan dependencia única. En este sentido y aplicado a este caso de uso, la utilización de un gráfico de barras agrupadas permite observar la evolución de una misma variable desde varios enfoques: el comportamiento de la dependencia anual tanto a nivel general como a través de la segmentación por rangos.
+
+Para el segundo caso se recurrió a un gráfico de puntos a modo de dispersión que permite representar la relación entre la fecha de publicación de cada paquete (cada paquete es un punto) y la cantidad de dependencias que presenta; haciendo uso del tamaño de los puntos se buscó evidenciar aún más dicha dependencia representada en el eje y.
+
+
+**Analisis:**
+
+```{r}
+# Apertura y resumen de datos por cantidad de paquetes dependientes
+resumen_paquetes_cran <- paquetes_cran %>%
+    separate_rows(dependen_de, convert = TRUE) %>%
+    group_by(paquete) %>%
+    summarise(cant_paquetes_dependen_de = n())
+```
+
+```{r}
+df <- left_join(
+        paquetes_cran, resumen_paquetes_cran,
+        by = c("paquete" = "paquete")) %>%
+    # .keep_all conserva todo el resto de las variables
+    distinct(paquete, .keep_all = TRUE) %>%
+    filter(cant_paquetes_dependen_de > 1)
+```
+
+```{r}
+df %>%
+    mutate(rangos_dependencia = case_when(
+                        cant_paquetes_dependen_de >= 2 & cant_paquetes_dependen_de < 5 ~ "2 a 4",
+                        cant_paquetes_dependen_de >= 5 & cant_paquetes_dependen_de < 11 ~ "5 a 10",
+                        cant_paquetes_dependen_de >= 11 & cant_paquetes_dependen_de < 50 ~ "11 a 50",
+                        cant_paquetes_dependen_de >= 50 ~ "Mayor a 50"
+    )) %>%
+    mutate(anio = substr(fecha_publicacion, 1, 4)) %>%
+    ggplot(aes(anio)) +
+    geom_bar(aes(
+        fill = fct_relevel(rangos_dependencia,
+                            "2 a 4",
+                            "5 a 10",
+                            "11 a 50",
+                            "Mayor a 50")), 
+        position = "dodge") +
+    labs(
+        title = "Paquetes de R publicados por año y rango de dependencia",
+        subtitle = "Cantidad de paquetes publicados anualmente, agrupados por rangos de dependencia (dependencia mayor a 1)",
+        caption = 'Fuente: CRAN (The Comprehensive R Archive Network), proyecto "Datos de Miércoles"',
+        fill = "Rangos de dependencia",
+        x = "Año",
+        y = "Cantidad de paquetes") +
+    theme(
+        legend.position = "bottom",
+        plot.title = element_text(face = "bold", size = 14),
+        plot.subtitle = element_text(size = 8),
+        plot.caption = element_text(hjust = 0.5)) +
+    guides(fill = guide_legend(nrow = 2, byrow = TRUE))
+```
+
+```{r}
+# Agregado de la nueva columna al set de datos original
+df <- left_join(
+        paquetes_cran, resumen_paquetes_cran,
+        by = c("paquete" = "paquete")) %>%
+    # .keep_all conserva todo el resto de las variables
+    distinct(paquete, .keep_all = TRUE) %>%
+    filter(cant_paquetes_dependen_de > 5)
+```
+
+```{r}
+maximos <- df %>%
+    filter(cant_paquetes_dependen_de > 310, na.rm = TRUE)
+
+df %>%
+    mutate(anio = year(fecha_publicacion)) %>%
+    ggplot(aes(fecha_publicacion, cant_paquetes_dependen_de)) +
+    geom_point(aes(
+        size = cant_paquetes_dependen_de),
+        # color = cant_paquetes_dependen_de),
+        color = "#1d92b6",
+        alpha = 0.5) +
+    # Formateo de etiquetas para los primeros cinco valores
+    geom_text(aes(label = paquete),
+                data = maximos[1,],
+                size = 3,
+                hjust = 1.3,
+                vjust = 0.2) +
+    geom_text(aes(label = paquete),
+                data = maximos[2,],
+                size = 3,
+                hjust = 1.3,
+                vjust = 0.2) +
+    geom_text(aes(label = paquete),
+                data = maximos[3,],
+                size = 3,
+                hjust = 1.5,
+                vjust = 0.2) +
+    geom_text(aes(label = paquete),
+                data = maximos[4,],
+                size = 3,
+                hjust = 1.4,
+                vjust = -0.1) +
+    geom_text(aes(label = paquete),
+                data = maximos[5,],
+                size = 3,
+                hjust = 1.3,
+                vjust = 0.7) +
+    # Eje y en escala logarítmica
+    scale_y_log10() +
+    labs(
+        title = "Frecuencia de publicación de paquetes y dependencia entre ellos",
+        caption = 'Fuente: CRAN (The Comprehensive R Archive Network), proyecto "Datos de Miércoles"',
+        size = "Cantidad de paquetes dependientes",
+        color = "Cantidad de paquetes dependientes",
+        x = "Fecha de publicación",
+        y = "Cantidad de paquetes dependientes") +
+    theme(
+        legend.position = "bottom",
+        plot.title = element_text(face = "bold", size = 13, hjust = 0.5),
+        plot.caption = element_text(hjust = 0.5))
+```
+
+**Discusión:**
+
+Si bien la mayoría de los paquetes que se publican son de baja dependencia, se observa una tendencia creciente en ellos a reutilizar paquetes anteriores. Esto implica que se construyan sobre la base de otros, reutilizando el trabajo realizado con anterioridad por otros desarrolladores, enfocándose en agregar funcionalidad y especificidad.
+
+Notando el caso del paquete con la mayor cantidad de dependencias y reforzando aún más lo propuesto en el punto 1, del paquete "MASS" dependen cerca de 1300 otros, a pesar de que fue lanzado en el año 2019, lo que sugiere que la base de conocimiento en R se encuentra en aumento.
